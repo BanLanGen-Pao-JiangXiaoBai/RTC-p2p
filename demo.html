@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+  <video id="video" autoplay></video>
+  <video id="video2" autoplay></video>
+    <script>
+var localPeerConnection, remotePeerConnection, sendChannel, receiveChannel;
+var configuration = {
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+}
+localPeerConnection = new RTCPeerConnection({configuration: configuration, iceServers: []});
+
+localPeerConnection.ontrack = function(e){
+  console.log('ontrack', e)
+  video.srcObject = e.streams[0]
+}
+
+localPeerConnection.onicecandidate = function(event) {
+  // if (event.candidate) {
+    // console.log('e',event.candidate)
+    !event.candidate||remotePeerConnection.addIceCandidate(new RTCIceCandidate(event.candidate));
+  // }
+};
+
+
+sendChannel = localPeerConnection.createDataChannel("CHANNEL_NAME");
+
+sendChannel.onopen = function(event) {
+  var readyState = sendChannel.readyState;
+  if (readyState == "open") {
+    sendChannel.send("Hello");
+  }
+};
+
+remotePeerConnection = new RTCPeerConnection(configuration);
+
+// remotePeerConnection.onaddstream=function(e){
+//   cosole.log('ontrack', e)
+// }
+remotePeerConnection.ontrack=function(e){
+  console.log('ontrack', e)
+  video2.srcObject = e.streams[0]
+}
+// remotePeerConnection.onstream=function(e){
+//   cosole.log('ontrack', e)
+// }
+
+remotePeerConnection.onicecandidate = function(event) {
+  // if (event.candidate) {
+    !event.candidate||localPeerConnection.addIceCandidate(new RTCIceCandidate(event.candidate));
+  // }
+};
+
+remotePeerConnection.ondatachannel = function(event) {
+  receiveChannel = event.channel;
+  receiveChannel.onmessage = function(event) {
+    console.log(event.data);
+  };
+};
+    navigator.mediaDevices.getUserMedia({
+      audio:true,
+      video:true
+    }).then(stream=>{
+      console.log('stream', stream)
+      // remotePeerConnection.addStream(stream)
+      stream.getTracks().forEach(track=>{
+        console.log(track)
+        localPeerConnection.addTrack(track,stream)
+        // stream.removeTrack(track)
+      })
+
+
+  localPeerConnection.createOffer().then(
+    function(desc) {
+      console.log('offer')
+  localPeerConnection.setLocalDescription(desc);
+  remotePeerConnection.setRemoteDescription(desc);
+  stream.getTracks().forEach(track=>{
+        console.log(track)
+        remotePeerConnection.addTrack(track,stream)
+        stream.removeTrack(track)
+      })
+
+  remotePeerConnection.createAnswer().then(
+    function(desc) {
+
+    remotePeerConnection.setLocalDescription(desc);
+    localPeerConnection.setRemoteDescription(desc);
+    // navigator.mediaDevices.getUserMedia({
+    //   audio:true,
+    //   video:true
+    // }).then(stream=>{
+    //   console.log('stream', stream)
+    //   // remotePeerConnection.addStream(stream)
+    //   stream.getTracks().forEach(track=>{
+    //     console.log(track)
+    //     remotePeerConnection.addTrack(track,stream)
+    //     stream.removeTrack(track)
+    //   })
+    // })
+  }
+  )
+}
+)
+    })
+
+    </script>
+</body>
+</html>
